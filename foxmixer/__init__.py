@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 # API documentation: https://www.foxmixer.com/api
 
@@ -78,10 +78,15 @@ def api_request(url, get_params=None, retry=False, timeout=DEFAULT_TIMEOUT):
 @cli.cmd(name='mix')
 @cli.cmd_arg('--currency', type=str, required=True)
 @cli.cmd_arg('--output_address', type=str, required=True)
+@cli.cmd_arg('--mixcode', type=str, default=None)
 @cli.cmd_arg('--endpoint', type=str, default=DEFAULT_ENDPOINT)
-def _mix_terminal(currency, output_address, endpoint=DEFAULT_ENDPOINT):
+def _mix_terminal(currency,
+                  output_address,
+                  mixcode=None,
+                  endpoint=DEFAULT_ENDPOINT):
     output = mix(currency=currency,
                  output_address=output_address,
+                 mixcode=mixcode,
                  endpoint=endpoint)
     address = output['address']
     id = output['id']
@@ -101,6 +106,7 @@ def _mix_terminal(currency, output_address, endpoint=DEFAULT_ENDPOINT):
 
 def mix(currency,
         output_address,
+        mixcode=None,
         endpoint=DEFAULT_ENDPOINT,
         delay=DEFAULT_DELAY,
         affiliate=DEFAULT_AFFILIATE,
@@ -110,6 +116,7 @@ def mix(currency,
     """
     currency must be one of: bitcoin
     output_address is destination for mixed coins.
+    mixcode is None or string.
     affiliate is None or string.
     """
     validate.currency(currency)
@@ -117,6 +124,9 @@ def mix(currency,
     get_params = {'payoutAddress1': output_address,
                   'payoutPercentage1': 100,
                   'payoutDelay1': delay}
+
+    if mixcode is not None:
+        get_params['mixcode'] = mixcode
 
     if affiliate is not None:
         get_params['payoutAddress2'] = affiliate
