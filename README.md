@@ -8,6 +8,7 @@
 ## Usage
 
 * `foxmixer mix --currency bitcoin --address 1a....`
+* Make sure a Tor SOCKS proxy is running locally (127.0.0.1:9050)
 
 If you have a mixcode from a previous mix:
 

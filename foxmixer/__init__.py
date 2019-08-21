@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-__version__ = '0.0.2'
+__version__ = '0.0.4'
 
 # API documentation: https://www.foxmixer.com/api
 
@@ -18,7 +18,7 @@ from . import validate
 CLEARNET_ENDPOINT = 'https://www.foxmixer.com'
 TOR_ENDPOINT = 'http://foxmixer6mrsuxrl.onion'
 
-DEFAULT_ENDPOINT = CLEARNET_ENDPOINT
+DEFAULT_ENDPOINT = TOR_ENDPOINT
 
 DEFAULT_AFFILIATE = '1CMndA1TgScgKDDnCHYx1ZQDZQJ439ZWpK'
 
@@ -33,22 +33,77 @@ DEFAULT_AFFILIATE_DELAY = randint(2, 12)
 DEFAULT_TIMEOUT = 60
 DEFAULT_RETRY = False
 
+USE_TOR_PROXY = 'auto'
+TOR_PROXY = 'socks5h://127.0.0.1:9050'
+# For requests module
+TOR_PROXY_REQUESTS = {'http': TOR_PROXY, 'https': TOR_PROXY}
+
 cli = aaargh.App()
 
 logging.basicConfig(level=logging.WARNING)
 
 
-def api_request(url, get_params=None, retry=False, timeout=DEFAULT_TIMEOUT):
+def validate_use_tor_proxy(use_tor_proxy):
+    if isinstance(use_tor_proxy, bool):
+        return True
+    if isinstance(use_tor_proxy, str):
+        if use_tor_proxy == 'auto':
+            return True
+
+    raise ValueError('use_tor_proxy must be True, False, or "auto"')
+
+
+def is_onion_url(url):
+    """
+    returns True/False depending on if a URL looks like a Tor hidden service
+    (.onion) or not.
+    This is designed to false as non-onion just to be on the safe-ish side,
+    depending on your view point. It requires URLs like: http://domain.tld/,
+    not http://domain.tld or domain.tld/.
+
+    This can be optimized a lot.
+    """
+    try:
+        url_parts = url.split('/')
+        domain = url_parts[2]
+        tld = domain.split('.')[-1]
+        if tld == 'onion':
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def api_request(url,
+                get_params=None,
+                retry=DEFAULT_RETRY,
+                timeout=DEFAULT_TIMEOUT,
+                use_tor_proxy=USE_TOR_PROXY):
+    validate_use_tor_proxy(use_tor_proxy)
+    proxies = {}
+    if use_tor_proxy is True:
+        proxies = TOR_PROXY_REQUESTS
+    elif use_tor_proxy == 'auto':
+        if is_onion_url(url) is True:
+            msg = 'use_tor_proxy is "auto" and we have a .onion url, '
+            msg += 'using local Tor SOCKS proxy.'
+            logging.debug(msg)
+            proxies = TOR_PROXY_REQUESTS
+
     try:
         request = requests.get(url,
                                params=get_params,
-                               timeout=timeout)
+                               timeout=timeout,
+                               proxies=proxies)
     except Exception as e:
         if retry is True:
             logging.warning('Got an error, but retrying: {}'.format(e))
             sleep(5)
             # Try again.
-            return api_request(url, get_params=get_params, retry=retry)
+            return api_request(url,
+                               get_params=get_params,
+                               retry=retry,
+                               use_tor_proxy=use_tor_proxy)
         else:
             raise
 
@@ -66,7 +121,8 @@ def api_request(url, get_params=None, retry=False, timeout=DEFAULT_TIMEOUT):
             return api_request(url,
                                get_params=get_params,
                                retry=retry,
-                               timeout=timeout)
+                               timeout=timeout,
+                               use_tor_proxy=use_tor_proxy)
         else:
             raise Exception(request.content)
     else:

@@ -29,7 +29,7 @@ setup(
     packages=['foxmixer'],
     install_requires=[
         'aaargh',
-        'requests',
+        'requests[socks]>=2.22.0',
         'pyqrcode'
     ],
     entry_points={
